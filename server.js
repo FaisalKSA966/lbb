@@ -25,7 +25,9 @@ app.use(cors({
     'http://localhost:3000',
     'https://localhost:3000',
     'http://127.0.0.1:3000',
-    'https://127.0.0.1:3000'
+    'https://127.0.0.1:3000',
+    'https://lb.8guys.xyz',  // Frontend على Vercel
+    'https://apilb.8guys.xyz' // API الخارجي
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
