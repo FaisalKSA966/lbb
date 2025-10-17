@@ -1624,6 +1624,12 @@ export function broadcastAll(event, data) {
 app.post('/api/discord-auth', async (req, res) => {
   try {
     const { code, redirect_uri: providedRedirect } = req.body;
+    
+    console.log('🔄 Discord OAuth request received:', { 
+      hasCode: !!code, 
+      codeLength: code?.length || 0,
+      redirectUri: providedRedirect 
+    });
 
     if (!code) {
       return res.status(400).json({ success: false, error: 'Code is required' });
@@ -1706,12 +1712,14 @@ app.post('/api/discord-auth', async (req, res) => {
         await fetchMemberOnRegistration(userInfo.id);
         
         console.log(`✅ Auto-registered user: ${userInfo.username} (${userInfo.id})`);
+        console.log(`📊 User now registered in website_registered_users table`);
       }
     } catch (regError) {
-      console.error('Error auto-registering user:', regError);
+      console.error('❌ Error auto-registering user:', regError);
       // Don't fail the OAuth flow if registration fails
     }
 
+    console.log('🎉 OAuth flow completed successfully');
     res.json({ success: true, access_token: data.access_token });
   } catch (err) {
     console.error('Discord auth error:', err);
