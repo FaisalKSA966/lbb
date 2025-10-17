@@ -1748,6 +1748,78 @@ app.get('/', (req, res) => {
   });
 });
 
+// ============ BOT ACTIVITY SYNC ENDPOINTS ============
+
+// Receive voice activity from bot
+app.post('/api/activity/voice', (req, res) => {
+  try {
+    const { userId, duration, action, timestamp } = req.body;
+    
+    console.log(`🎤 Voice activity from bot: ${userId} - ${action} - ${duration} minutes`);
+    
+    // Update local database with bot data
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Ensure user exists
+    const user = db.prepare('SELECT * FROM users WHERE user_id = ?').get(userId);
+    if (!user) {
+      console.log(`⚠️ User ${userId} not found in local database`);
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    // Update voice minutes
+    if (action === 'left_voice' && duration > 0) {
+      db.prepare(`
+        INSERT OR REPLACE INTO daily_activity (user_id, date, voice_minutes, messages_count)
+        VALUES (?, ?, COALESCE((SELECT voice_minutes FROM daily_activity WHERE user_id = ? AND date = ?), 0) + ?, 
+                COALESCE((SELECT messages_count FROM daily_activity WHERE user_id = ? AND date = ?), 0))
+      `).run(userId, today, userId, today, duration, userId, today);
+      
+      console.log(`✅ Updated voice minutes for ${userId}: +${duration} minutes`);
+    }
+    
+    res.json({ success: true, message: 'Voice activity synced' });
+  } catch (err) {
+    console.error('Error syncing voice activity:', err);
+    res.status(500).json({ success: false, error: 'Database error' });
+  }
+});
+
+// Receive message activity from bot
+app.post('/api/activity/message', (req, res) => {
+  try {
+    const { userId, action, timestamp } = req.body;
+    
+    console.log(`💬 Message activity from bot: ${userId} - ${action}`);
+    
+    // Update local database with bot data
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Ensure user exists
+    const user = db.prepare('SELECT * FROM users WHERE user_id = ?').get(userId);
+    if (!user) {
+      console.log(`⚠️ User ${userId} not found in local database`);
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+    
+    // Update message count
+    if (action === 'message_sent') {
+      db.prepare(`
+        INSERT OR REPLACE INTO daily_activity (user_id, date, voice_minutes, messages_count)
+        VALUES (?, ?, COALESCE((SELECT voice_minutes FROM daily_activity WHERE user_id = ? AND date = ?), 0),
+                COALESCE((SELECT messages_count FROM daily_activity WHERE user_id = ? AND date = ?), 0) + 1)
+      `).run(userId, today, userId, today, userId, today);
+      
+      console.log(`✅ Updated message count for ${userId}: +1 message`);
+    }
+    
+    res.json({ success: true, message: 'Message activity synced' });
+  } catch (err) {
+    console.error('Error syncing message activity:', err);
+    res.status(500).json({ success: false, error: 'Database error' });
+  }
+});
+
 const PORT = process.env.PORT || 3000;
 const server = app.listen(PORT, () => {
   console.log(`✅ API Server: http://localhost:${PORT}`);

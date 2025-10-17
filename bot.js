@@ -30,7 +30,7 @@ if (result.error) {
   console.log('Environment variables loaded successfully');
 }
 
-const { TOKEN, GUILD_ID, ACTIVITY_CHANNEL_ID, ACTIVITY_APP_ID, CLIENT_ID } = process.env;
+const { TOKEN, GUILD_ID, ACTIVITY_CHANNEL_ID, ACTIVITY_APP_ID, CLIENT_ID, EXTERNAL_API_URL } = process.env;
 
 // Debug: Show which variables are loaded
 console.log('Environment variables status:');
@@ -38,6 +38,7 @@ console.log('TOKEN:', TOKEN ? '✓ Loaded' : '✗ Missing');
 console.log('GUILD_ID:', GUILD_ID ? '✓ Loaded' : '✗ Missing');
 console.log('ACTIVITY_CHANNEL_ID:', ACTIVITY_CHANNEL_ID ? '✓ Loaded' : '✗ Missing');
 console.log('ACTIVITY_APP_ID:', ACTIVITY_APP_ID ? '✓ Loaded' : '✗ Missing');
+console.log('EXTERNAL_API_URL:', EXTERNAL_API_URL ? '✓ Loaded' : '✗ Missing');
 
 if (!TOKEN || !GUILD_ID || !ACTIVITY_CHANNEL_ID || !ACTIVITY_APP_ID) {
   console.error('Missing environment variables: TOKEN, GUILD_ID, ACTIVITY_CHANNEL_ID, ACTIVITY_APP_ID');
@@ -47,6 +48,32 @@ if (!TOKEN || !GUILD_ID || !ACTIVITY_CHANNEL_ID || !ACTIVITY_APP_ID) {
 // Database
 const db = new Database(path.join(__dirname, 'database.db'));
 db.pragma('journal_mode = WAL');
+
+// Function to sync data with external API
+async function syncWithExternalAPI(endpoint, data) {
+  if (!EXTERNAL_API_URL) {
+    console.log('⚠️ EXTERNAL_API_URL not set, skipping external API sync');
+    return;
+  }
+
+  try {
+    const response = await fetch(`${EXTERNAL_API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data)
+    });
+
+    if (response.ok) {
+      console.log(`✅ Synced with external API: ${endpoint}`);
+    } else {
+      console.log(`⚠️ External API sync failed: ${endpoint} - Status: ${response.status}`);
+    }
+  } catch (error) {
+    console.log(`⚠️ External API sync error: ${endpoint} - ${error.message}`);
+  }
+}
 
 // Create enhanced schema
 db.exec(`
@@ -639,6 +666,14 @@ client.on('voiceStateUpdate', async (oldState, newState) => {
       // Check and grant auto badges
       checkAndGrantAutoBadges(userId);
 
+      // Sync with external API
+      await syncWithExternalAPI('/api/activity/voice', {
+        userId,
+        duration,
+        action: 'left_voice',
+        timestamp: now
+      });
+
       // Legacy streak check
       const todayActivity = db.prepare(
         'SELECT voice_minutes FROM daily_activity WHERE user_id = ? AND date = ?'
@@ -698,6 +733,13 @@ client.on('messageCreate', async (message) => {
 
   // Check and grant auto badges
   checkAndGrantAutoBadges(userId);
+
+  // Sync with external API
+  await syncWithExternalAPI('/api/activity/message', {
+    userId,
+    action: 'message_sent',
+    timestamp: Date.now()
+  });
 
   // Legacy streak check
   const todayActivity = db.prepare(
