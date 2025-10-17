@@ -1,0 +1,26 @@
+{
+  "name": "activity-leaderboard-backend",
+  "version": "3.0.0",
+  "description": "Discord Activity Leaderboard - Backend (Bot + API)",
+  "type": "module",
+  "main": "bot.js",
+  "scripts": {
+    "bot": "node bot.js",
+    "server": "node server.js",
+    "dev": "concurrently \"npm run bot\" \"npm run server\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0",
+    "cors": "^2.8.5",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.4.1",
+    "express": "^4.18.2",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
